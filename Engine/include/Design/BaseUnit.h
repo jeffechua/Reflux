@@ -43,8 +43,8 @@ namespace Reflux::Engine::Design {
 		virtual void render(Simulation::GraphBuilder& graphBuilder, const std::vector<Simulation::Node*>& bindings) const = 0;
 
 	protected:
-		virtual size_t port_count() const = 0;
-		virtual Port& get_port(size_t i) = 0;
+		virtual size_t port_count_() const = 0;
+		virtual Port& get_port_(size_t i) = 0;
 
 	};
 

@@ -10,11 +10,11 @@ namespace Reflux::Engine::Design {
     BaseUnit::Ports::Ports(BaseUnit& unit) : unit(unit) {}
 
     size_t BaseUnit::Ports::size() const {
-        return unit.port_count();
+        return unit.port_count_();
     }
 
     Port& BaseUnit::Ports::operator[](size_t index) {
-        return unit.get_port(index);
+        return unit.get_port_(index);
     }
 
     BaseUnit::Ports::Iterator BaseUnit::Ports::begin() const {
@@ -22,7 +22,7 @@ namespace Reflux::Engine::Design {
     }
 
     BaseUnit::Ports::Iterator BaseUnit::Ports::end() const {
-        return Iterator(unit, unit.port_count());
+        return Iterator(unit, unit.port_count_());
     }
 
 	// BASEUNIT::PORT::ITERATOR
@@ -98,15 +98,15 @@ namespace Reflux::Engine::Design {
     }
 
     BaseUnit::Ports::Iterator::reference BaseUnit::Ports::Iterator::operator[](difference_type n) const {
-        return unit.get_port(index + n);
+        return unit.get_port_(index + n);
     }
 
     BaseUnit::Ports::Iterator::reference BaseUnit::Ports::Iterator::operator*() const {
-        return unit.get_port(index);
+        return unit.get_port_(index);
     }
 
     BaseUnit::Ports::Iterator::pointer BaseUnit::Ports::Iterator::operator->() const {
-        return &unit.get_port(index);
+        return &unit.get_port_(index);
     }
 
 }

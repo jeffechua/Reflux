@@ -8,21 +8,19 @@ namespace Reflux::Engine::Design {
 
 	class CompositeUnit;
 
-	namespace Factory {
-		struct CreationContext;
-	}
+	class Factory;
 
 	class Design {
 
-		friend Factory::CreationContext;
+		friend Factory;
 
 	public:
 
 		std::string name;
 		CompositeUnit* root;
 		Design(std::string name = "MyDesign");
-		void destroy(BaseUnit& unit);
-		void destroy(Junction& junction);
+		const std::unordered_map<UnitId, std::unique_ptr<BaseUnit>>& get_units() const;
+		const std::unordered_map<UnitId, std::unique_ptr<Junction>>& get_junctions() const;
 		bool contains_unit(UnitId id);
 		bool contains_junction(JunctionId id);
 		BaseUnit& get_unit(UnitId id);
@@ -33,8 +31,8 @@ namespace Reflux::Engine::Design {
 	private:
 		UnitId nextUnitId;
 		JunctionId nextJunctionId;
-		std::unordered_map<UnitId, std::unique_ptr<BaseUnit>> units;
-		std::unordered_map<JunctionId, std::unique_ptr<Junction>> junctions;
+		std::unordered_map<UnitId, std::unique_ptr<BaseUnit>> units_;
+		std::unordered_map<JunctionId, std::unique_ptr<Junction>> junctions_;
 		template<typename T, typename... TConstructorArgs>
 		T& make_unit(TConstructorArgs... args);
 		Junction& make_junction();
@@ -47,7 +45,7 @@ namespace Reflux::Engine::Design {
 	template<typename T, typename... TConstructorArgs>
 	T& Design::make_unit(TConstructorArgs... args) {
 		T* ptr = new T(nextUnitId++, *this, args...);
-		units[ptr->id] = std::unique_ptr<BaseUnit>(ptr);
+		units_[ptr->id] = std::unique_ptr<BaseUnit>(ptr);
 		return *ptr;
 	}
 

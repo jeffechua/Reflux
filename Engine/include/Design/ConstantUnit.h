@@ -19,8 +19,8 @@ namespace Reflux::Engine::Design {
 
 	private:
 		std::array<Port, 2> portsArray;
-		size_t port_count() const override;
-		Port& get_port(size_t i) override;
+		size_t port_count_() const override;
+		Port& get_port_(size_t i) override;
 
 	};
 

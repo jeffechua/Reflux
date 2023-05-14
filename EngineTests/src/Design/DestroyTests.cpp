@@ -20,7 +20,7 @@ public:
 		Design design{};
 		ConstantUnit& edge = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 1, 2);
-		design.destroy(edge);
+		Factory::destroy(edge);
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 0, 0);
 	}
 
@@ -30,7 +30,7 @@ public:
 		ConstantUnit& edge1 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
 		Junction::merge(*edge0.ports[1].junction, *edge1.ports[0].junction);
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 2, 3);
-		design.destroy(edge0);
+		Factory::destroy(edge0);
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 1, 2);
 	}
 
@@ -43,7 +43,7 @@ public:
 		group.push({ &edge0 });
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 2, 2);
 		TestUtils::validate_and_assert_composite_unit_counts(group, 1, 1, 2);
-		design.destroy(edge0);
+		Factory::destroy(edge0);
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 2, 2);
 		TestUtils::validate_and_assert_composite_unit_counts(group, 0, 0, 0);
 	}
@@ -57,7 +57,7 @@ public:
 		group.push({ &edge0 });
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 2, 2);
 		TestUtils::validate_and_assert_composite_unit_counts(group, 1, 1, 2);
-		design.destroy(group);
+		Factory::destroy(group);
 		TestUtils::validate_and_assert_composite_unit_counts(*design.root, 0, 2, 2);
 		TestUtils::validate_and_assert_composite_unit_counts(group, 0, 0, 0);
 	}*/

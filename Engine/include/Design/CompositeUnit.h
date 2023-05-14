@@ -4,15 +4,19 @@
 
 namespace Reflux::Engine::Design {
 
+	class Factory;
+
 	class CompositeUnit : public BaseUnit {
 
+		friend Factory;
+
 	public:
-		std::unordered_set<BaseUnit*> units;
-		std::unordered_set<Junction*> junctions;
 
 		CompositeUnit(UnitId id, Design& design);
-		void push(const std::unordered_set<BaseUnit*>& units);
-		void pop(const std::unordered_set<BaseUnit*>& units);
+		const std::unordered_set<BaseUnit*>& get_units() const;
+		const std::unordered_set<Junction*>& get_junctions() const;
+		void push(const std::unordered_set<BaseUnit*>& units_);
+		void pop(const std::unordered_set<BaseUnit*>& units_);
 		Port& get_export(Junction& junction);
 		Junction& add_export(Junction& junction);
 		void remove_export(Junction& junction);
@@ -26,13 +30,15 @@ namespace Reflux::Engine::Design {
 
 	private:
 		// BaseUnit implementations
-		size_t port_count() const override;
-		Port& get_port(size_t i) override;
+		size_t port_count_() const override;
+		Port& get_port_(size_t i) override;
 		// New members
-		std::unordered_map<Junction*, std::unique_ptr<Port>> exports;
-		std::unordered_map<Port*, Junction*> exportsReverseLookup;
-		Port& add_export_raw(Junction& junction);
-		std::unique_ptr<Port> remove_export_raw(Junction& junction);
+		std::unordered_set<BaseUnit*> units_;
+		std::unordered_set<Junction*> junctions_;
+		std::unordered_map<Junction*, std::unique_ptr<Port>> exports_;
+		std::unordered_map<Port*, Junction*> exportsReverseLookup_;
+		Port& add_export_raw_(Junction& junction);
+		std::unique_ptr<Port> remove_export_raw_(Junction& junction);
 
 	};
 

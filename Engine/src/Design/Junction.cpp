@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include "../../include/Design/Junction.h"
 #include "../../include/Design/CompositeUnit.h"
+#include "../../include/Design/Factory.h"
 
 namespace Reflux::Engine::Design {
 
@@ -30,7 +31,7 @@ namespace Reflux::Engine::Design {
 			port->unbind();
 			port->bind(first);
 		}
-		parent.design->destroy(second);
+		Factory::destroy(second);
 		return first;
 	}
 

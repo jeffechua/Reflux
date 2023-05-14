@@ -31,11 +31,11 @@ namespace Reflux::Engine::Design {
 
 	// PRIVATE
 
-	size_t ConstantUnit::port_count() const {
+	size_t ConstantUnit::port_count_() const {
 		return 2;
 	}
 
-	Port& ConstantUnit::get_port(size_t i) {
+	Port& ConstantUnit::get_port_(size_t i) {
 		return portsArray[i];
 	}
 
