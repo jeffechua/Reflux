@@ -13,9 +13,10 @@ namespace Reflux::Engine::Design {
 	public:
 		const JunctionId id;
 		CompositeUnit* parent;
+		bool isExported;
 		std::unordered_set<Port*> ports;
 		Junction(JunctionId id);
-
+		static Junction& merge(Junction& first, Junction& second);
 	};
 
 }

@@ -4,6 +4,7 @@
 #include "Engine/include/Design/Design.h"
 #include "Engine/include/Design/CompositeUnit.h"
 #include "Engine/include/Design/ConstantUnit.h"
+#include "Engine/include/Design/Factory.h"
 #include "Engine/include/Simulation/Graph.h"
 #include "../../include/Utils/graph_comparison.h"
 #include "../../include/Utils/pointer_comparison.h"
@@ -15,21 +16,9 @@ namespace Reflux::Engine::Design::Tests {
 	TEST_CLASS(FlatDesignTests) {
 public:
 
-	TEST_METHOD(TestOneJunction) {
+	TEST_METHOD(TestOneEdge) {
 		Design design{};
-		Junction& junction = design.root->create_junction();
-		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
-		Assert::IsTrue(design.root->validate(std::cerr));
-		Assert::IsTrue(TestUtils::equals(TestUtils::createOneNode(false), design.build()));
-	}
-
-	TEST_METHOD(TestOneConstantEdge) {
-		Design design{};
-		Junction& j0 = design.root->create_junction();
-		Junction& j1 = design.root->create_junction();
-		ConstantUnit& unit = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0.5, 9.7);
-		unit.ports[0].bind(j0);
-		unit.ports[1].bind(j1);
+		ConstantUnit& unit = Factory::in(*design.root).create_unit<ConstantUnit>(0.5, 9.7);
 		Assert::IsTrue(design.root->validate(std::cerr));
 		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
 		GraphBuilder builder(2, 1);
@@ -40,32 +29,11 @@ public:
 		Assert::IsTrue(TestUtils::equals(builder.build(), design.build()));
 	}
 
-	TEST_METHOD(TestOneUnboundEdge) {
-		Design design{};
-		ConstantUnit& unit = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0.5, 9.7);
-		Assert::IsTrue(design.root->validate(std::cerr));
-		Assert::AreEqual(static_cast<size_t>(2), design.root->ports.size());
-		Port* ports[2];
-		int i = 0;
-		for (Port& port : design.root->ports) {
-			ports[i] = &port;
-			i++;
-		}
-		Assert::AreNotEqual(ports[0], ports[1]);
-		Assert::ExpectException<std::runtime_error>([&]() { design.build(); }, L"Tried to build design with open ports.");
-	}
-
 	TEST_METHOD(TestTwoEdges) {
 		Design design{};
-		Junction& j0 = design.root->create_junction();
-		Junction& j1 = design.root->create_junction();
-		Junction& j2 = design.root->create_junction();
-		ConstantUnit& unit0 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit0.ports[0].bind(j0);
-		unit0.ports[1].bind(j1);
-		ConstantUnit& unit1 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit1.ports[0].bind(j1);
-		unit1.ports[1].bind(j2);
+		ConstantUnit& unit0 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit1 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		Junction::merge(*unit0.ports[1].junction, *unit1.ports[0].junction);
 		Assert::IsTrue(design.root->validate(std::cerr));
 		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
 		Assert::IsTrue(TestUtils::equals(TestUtils::createTwoEdges(false), design.build()));
@@ -73,15 +41,9 @@ public:
 
 	TEST_METHOD(TestTwoEdgesConverging) {
 		Design design{};
-		Junction& j0 = design.root->create_junction();
-		Junction& j1 = design.root->create_junction();
-		Junction& j2 = design.root->create_junction();
-		ConstantUnit& unit0 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit0.ports[0].bind(j0);
-		unit0.ports[1].bind(j1);
-		ConstantUnit& unit1 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit1.ports[0].bind(j2);
-		unit1.ports[1].bind(j1);
+		ConstantUnit& unit0 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit1 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		Junction::merge(*unit0.ports[1].junction, *unit1.ports[1].junction);
 		Assert::IsTrue(design.root->validate(std::cerr));
 		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
 		Assert::IsTrue(TestUtils::equals(TestUtils::createTwoEdgesConverging(false), design.build()));
@@ -89,18 +51,12 @@ public:
 
 	TEST_METHOD(TestTriangle) {
 		Design design{};
-		Junction& j0 = design.root->create_junction();
-		Junction& j1 = design.root->create_junction();
-		Junction& j2 = design.root->create_junction();
-		ConstantUnit& unit0 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit0.ports[0].bind(j0);
-		unit0.ports[1].bind(j1);
-		ConstantUnit& unit1 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit1.ports[0].bind(j1);
-		unit1.ports[1].bind(j2);
-		ConstantUnit& unit2 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit2.ports[0].bind(j2);
-		unit2.ports[1].bind(j0);
+		ConstantUnit& unit0 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit1 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit2 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		Junction::merge(*unit0.ports[1].junction, *unit1.ports[0].junction);
+		Junction::merge(*unit1.ports[1].junction, *unit2.ports[0].junction);
+		Junction::merge(*unit2.ports[1].junction, *unit0.ports[0].junction);
 		Assert::IsTrue(design.root->validate(std::cerr));
 		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
 		Assert::IsTrue(TestUtils::equals(TestUtils::createTriangle(false), design.build()));
@@ -108,23 +64,13 @@ public:
 
 	TEST_METHOD(TestSymmetricTree) {
 		Design design{};
-		Junction& j0 = design.root->create_junction();
-		Junction& j1 = design.root->create_junction();
-		Junction& j2 = design.root->create_junction();
-		Junction& j3 = design.root->create_junction();
-		Junction& j4 = design.root->create_junction();
-		ConstantUnit& unit0 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit0.ports[0].bind(j0);
-		unit0.ports[1].bind(j1);
-		ConstantUnit& unit1 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit1.ports[0].bind(j1);
-		unit1.ports[1].bind(j2);
-		ConstantUnit& unit2 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit2.ports[0].bind(j1);
-		unit2.ports[1].bind(j3);
-		ConstantUnit& unit3 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit3.ports[0].bind(j1);
-		unit3.ports[1].bind(j4);
+		ConstantUnit& unit0 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit1 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit2 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit3 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		Junction::merge(*unit0.ports[1].junction, *unit1.ports[0].junction);
+		Junction::merge(*unit0.ports[1].junction, *unit2.ports[0].junction);
+		Junction::merge(*unit0.ports[1].junction, *unit3.ports[0].junction);
 		Assert::IsTrue(design.root->validate(std::cerr));
 		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
 		Assert::IsTrue(TestUtils::equals(TestUtils::createSymmetricTree(false), design.build()));
@@ -132,23 +78,13 @@ public:
 
 	TEST_METHOD(TestAsymmetricTree) {
 		Design design{};
-		Junction& j0 = design.root->create_junction();
-		Junction& j1 = design.root->create_junction();
-		Junction& j2 = design.root->create_junction();
-		Junction& j3 = design.root->create_junction();
-		Junction& j4 = design.root->create_junction();
-		ConstantUnit& unit0 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit0.ports[0].bind(j0);
-		unit0.ports[1].bind(j1);
-		ConstantUnit& unit1 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit1.ports[0].bind(j1);
-		unit1.ports[1].bind(j2);
-		ConstantUnit& unit2 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit2.ports[0].bind(j2);
-		unit2.ports[1].bind(j3);
-		ConstantUnit& unit3 = design.root->create<ConstantUnit>(ConstantUnit::RESISTIVE_CELL, 0, 0);
-		unit3.ports[0].bind(j1);
-		unit3.ports[1].bind(j4);
+		ConstantUnit& unit0 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit1 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit2 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		ConstantUnit& unit3 = Factory::in(*design.root).create_unit<ConstantUnit>(0, 0);
+		Junction::merge(*unit0.ports[1].junction, *unit1.ports[0].junction);
+		Junction::merge(*unit1.ports[1].junction, *unit2.ports[0].junction);
+		Junction::merge(*unit0.ports[1].junction, *unit3.ports[0].junction);
 		Assert::IsTrue(design.root->validate(std::cerr));
 		Assert::AreEqual(static_cast<size_t>(0), design.root->ports.size());
 		Assert::IsTrue(TestUtils::equals(TestUtils::createAsymmetricTree(false), design.build()));

@@ -8,15 +8,9 @@ namespace Reflux::Engine::Design {
 	class ConstantUnit : public BaseUnit {
 
 	public:
-		enum Type {
-			RESISTOR,
-			CELL,
-			RESISTIVE_CELL
-		};
-		Type type;
 		double R;
 		double e;
-		ConstantUnit(UnitId id, Design& design, Type type, double R, double e);
+		ConstantUnit(UnitId id, Design& design, double R, double e);
 		std::string name() const override;
 		int node_count() const override;
 		int edge_count() const override;

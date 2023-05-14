@@ -186,6 +186,7 @@
       </DeploymentContent>
     </ClInclude>
     <ClInclude Include="include\Design\Design.h" />
+    <ClInclude Include="include\Design\Factory.h" />
     <ClInclude Include="include\Design\Junction.h">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </DeploymentContent>
@@ -258,6 +259,7 @@
       </ForcedIncludeFiles>
     </ClCompile>
     <ClCompile Include="src\Design\Design.cpp" />
+    <ClCompile Include="src\Design\Factory.cpp" />
     <ClCompile Include="src\Design\Junction.cpp">
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Engine/pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Engine/pch.h</PrecompiledHeaderFile>

@@ -1,8 +1,10 @@
 #include "Engine/pch.h"
-#include "../../include/Design/CompositeUnit.h"
-#include "../../include/Design/Design.h"
 #include <format>
 #include <iostream>
+#include <algorithm>
+#include "../../include/Design/Factory.h"
+#include "../../include/Design/CompositeUnit.h"
+#include "../../include/Design/Design.h"
 
 namespace Reflux::Engine::Design {
 
@@ -10,184 +12,135 @@ namespace Reflux::Engine::Design {
 
 	CompositeUnit::CompositeUnit(UnitId id, Design& design) : BaseUnit(id, design), exports{}, exportsReverseLookup{} {}
 
-	Junction& CompositeUnit::create_junction() {
-		Junction& newJunction = design->create_junction();
-		newJunction.parent = this;
-		junctions.insert(&newJunction);
-		return newJunction;
-	}
-
-	// Removing units can remove internal-port/external-junc bindings or create external-port/internal-junc bindings
-	// Removing juncs can create internal-port/external-junc bindings or remove external-port/internal-junc bindings
-	// Adding   units can create internal-port/external-junc bindings or remove external-port/internal-junc bindings
-	// Adding   juncs can remove internal-port/external-junc bindings or create external-port/internal-junc bindings
-	// Int-port/ext-junc is resolvable by exporting the port and rebinding the exported port to the external junc.
-	// Ext-port/int-junc is not resolvable as we can't export junctions.
-	// Therefore, adding junctions or removing units can create violations.
-	std::vector<Junction*> CompositeUnit::get_push_boundary_violations(const std::unordered_set<Junction*>& junctionsToPush, const std::unordered_set<BaseUnit*>& unitsToPush) const {
-		std::vector<Junction*> violators{};
-		// Adding units can create internal-port/external-junc bindings or remove external-port/internal-junc bin
-		for (Junction* junction : junctionsToPush) {
-			for (Port* port : junction->ports) {
-				// Pushing a junction which is bound to an external unit creates a violation
-				// So the junction must either by bound to me, or to one of the other pushed units
-				if (!(exportsReverseLookup.contains(port) || unitsToPush.contains(&port->unit))) {
-					violators.push_back(junction);
-					break;
-				}
-			}
+	void CompositeUnit::push(const std::unordered_set<BaseUnit*>& unitsToPush) {
+		if (parent == nullptr) {
+			throw std::runtime_error("Cannot push to root unit.");
 		}
-		return violators;
-	}
-
-	std::vector<BaseUnit*> CompositeUnit::get_pop_boundary_violations(const std::unordered_set<Junction*>& junctionsToPop, const std::unordered_set<BaseUnit*>& unitsToPop) const {
-		std::vector<BaseUnit*> violators{};
-		for (BaseUnit* unit : unitsToPop) {
-			for (Port& port : unit->ports) {
-				// Popping a unit which is bound to an internal junction creates a violation
-				if (junctions.contains(port.junction) && !junctionsToPop.contains(port.junction)) {
-					violators.push_back(unit);
-					break;
-				}
-			}
-		}
-		return violators;
-	}
-
-	void CompositeUnit::push(const std::unordered_set<Junction*>& junctionsToPush, const std::unordered_set<BaseUnit*>& unitsToPush) {
-		if (get_push_boundary_violations(junctionsToPush, unitsToPush).size() > 0) {
-			throw std::runtime_error("Group is not pushable; it creates junctions connected to external units.");
-		}
-		// Add junctions
-		for (Junction* junction : junctionsToPush) {
-			if (junction->parent != parent) {
-				throw std::runtime_error(std::format("Junction %d is not a sibling of \"%s\"", junction->id, name()).c_str());
-			}
-			junctions.emplace(junction);
-			if (junction->parent) {
-				junction->parent->junctions.erase(junction);
-			}
-			junction->parent = this;
-			// Clone ports as we mutate junction->ports by rebinding
-			std::vector<Port*> ports{ junction->ports.begin(), junction->ports.end() };
-			for (Port* port : ports) {
-				// A pushed junction may be bound to the following types of port:
-				//  1. One of the newly added units: no change
-				//  2. One of my exported ports: need to unexport the port.
-				// It CANNOT be bound to an old internal port; that's a boundary violation.
-				if (&port->unit == this) {
-					Port* internalPort = exportsReverseLookup.at(port);
-					Port* exportedPort = port;
-					internalPort->bind(exportedPort->unbind(false), false);
-					removeExport(*internalPort);
-				}
-			}
-		}
-		// Add units
+		struct JunctionPushInfo {
+			Port* portFromMe = nullptr;
+			std::vector<Port*> portsFromUnitsToPush{};
+		};
+		std::unordered_map<Junction*, JunctionPushInfo> touchedJunctionsInfo{};
 		for (BaseUnit* unit : unitsToPush) {
+			// Claim the unit
 			if (unit->parent != parent) {
 				throw std::runtime_error(std::format("%s is not a sibling of \"%s\"", unit->name(), name()).c_str());
 			}
+			unit->parent->units.erase(unit);
 			units.emplace(unit);
-			if (unit->parent) {
-				unit->parent->units.erase(unit);
-			}
 			unit->parent = this;
-			// Do not need to clone ports as unit ports don't change on rebinding.
+			// Scan ports for touched junctions
 			for (Port& port : unit->ports) {
-				// A pushed unit's port can only be bound to:
-				//  1. One of the newly added junctions: no change.
-				//  2. An external junction: need to export port and rebind.
-				//  3. Nothing: it's exported by the parent CompositeUnit: need to be export but not rebind.
-				// It CANNOT be bound to an old internal junction; that's a boundary violation.
-				if (!junctions.contains(port.junction)) {
-					Port& exportedPort = addExport(port, std::make_unique<Port>(*this, port.outgoing));
-					if (port.is_bound()) {
-						exportedPort.bind(port.unbind(false), false);
-					} else if(parent) {
-						parent->notify_internal_port_switch(port, exportedPort);
-					}
+				// implicitly create JunctionInfo if not already present
+				touchedJunctionsInfo[port.junction].portsFromUnitsToPush.push_back(&port);
+			}
+		}
+		// Scan own ports for touching touched junctions
+		for (Port& port : ports) {
+			if (touchedJunctionsInfo.contains(port.junction)) {
+				Port*& portFromMe = touchedJunctionsInfo.at(port.junction).portFromMe;
+				if (portFromMe) {
+					throw std::runtime_error(std::format("Junction %d is bound to a \"%s\" of multiple times", port.junction->id, name()).c_str());
+				} else {
+					portFromMe = &port;
 				}
+			}
+		}
+		// Handle touched junctions
+		for (const auto& [junction, info] : touchedJunctionsInfo) {
+			if (junction->parent != parent) {
+				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id, name()).c_str());
+			}
+			bool isBoundToMe = info.portFromMe;
+			bool isBoundToUnpushed = junction->ports.size() > info.portsFromUnitsToPush.size() + (isBoundToMe ? 1 : 0);
+			if (isBoundToMe) {
+				// Migrate to existing case
+				Junction& internalJunction = *exportsReverseLookup.at(info.portFromMe);
+				for (Port* port : info.portsFromUnitsToPush) {
+					port->unbind();
+					port->bind(internalJunction);
+				}
+				if (!isBoundToUnpushed && !junction->isExported) {
+					info.portFromMe->unbind();
+					design->destroy(*junction);
+					remove_export_raw(internalJunction);
+				}
+			} else if (!isBoundToUnpushed && !junction->isExported){
+				// Steal case
+				junction->parent->junctions.erase(junction);
+				junctions.emplace(junction);
+				junction->parent = this;
+			} else {
+				// Create and migrate case
+				Junction& internalJunction = Factory::in(*this).create_junction();
+				for (Port* port : info.portsFromUnitsToPush) {
+					port->unbind();
+					port->bind(internalJunction);
+				}
+				Port& exportedPort = add_export_raw(internalJunction);
+				exportedPort.bind(*junction);
 			}
 		}
 	}
 
-	void CompositeUnit::pop(const std::unordered_set<Junction*>& junctionsToPop, const std::unordered_set<BaseUnit*>& unitsToPop) {
-		if (get_pop_boundary_violations(junctionsToPop, unitsToPop).size() > 0) {
-			throw std::runtime_error("Group is not pushable; it creates junctions connected to external units.");
+	void CompositeUnit::pop(const std::unordered_set<BaseUnit*>& unitsToPop) {
+		if (parent == nullptr) {
+			throw std::runtime_error("Cannot pop from root unit.");
 		}
-		// Remove junctions
-		for (Junction* junction : junctionsToPop) {
-			if (junction->parent != this) {
-				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id, name()).c_str());
-			}
-			junctions.erase(junction);
-			if (parent) {
-				parent->junctions.emplace(junction);
-			}
-			junction->parent = parent;
-			// Clone ports as we mutate junction->ports by rebinding
-			std::vector<Port*> ports{ junction->ports.begin(), junction->ports.end() };
-			for (Port* port : ports) {
-				// A popped junction may be bound to the following types of port:
-				//  1. An internal port in the pop group: no change.
-				//  2. An internal port not in the pop group: need to export the port.
-				// It CANNOT be bound to an external port; that's a boundary violation.
-				if (!unitsToPop.contains(&port->unit)) {
-					Port& internalPort = *port;
-					Port& exportedPort = addExport(*port, std::make_unique<Port>(*this, internalPort.outgoing));
-					exportedPort.bind(internalPort.unbind(false), false);
-				}
-			}
-		}
-		// Remove units
+		struct JunctionPopInfo {
+			std::vector<Port*> portsFromUnitsToPop{};
+		};
+		std::unordered_map<Junction*, JunctionPopInfo> touchedJunctionsInfo{};
 		for (BaseUnit* unit : unitsToPop) {
+			// Claim the unit
 			if (unit->parent != this) {
 				throw std::runtime_error(std::format("%s is not a child of \"%s\"", unit->name(), name()).c_str());
 			}
 			units.erase(unit);
-			if (parent) {
-				parent->units.emplace(unit);
-			}
+			parent->units.emplace(unit);
 			unit->parent = parent;
-			// Do not need to clone ports as unit ports don't change on rebinding.
+			// Scan ports for touched junctions
 			for (Port& port : unit->ports) {
-				// A removed unit's port can only be bound to:
-				//  1. One of the popped junctions: no change.
-				//  2. An external junction, via an export: need to unexport the port and rebind.
-				//  3. Nothing, via an export: need to unexport but not rebind.
-				// It CANNOT be bound to a non-popped internal junction; that's a boundary violation.
-				if (!port.is_bound()) { // (i.e. is exported)
-					Port& exportedPort = *exports.at(&port);
-					if (exportedPort.is_bound()) {
-						port.bind(exportedPort.unbind(false), false);
-					} else if (parent) {
-						parent->notify_internal_port_switch(exportedPort, port);
-					}
-					removeExport(port);
-				}
+				// implicitly create JunctionInfo if not already present
+				touchedJunctionsInfo[port.junction].portsFromUnitsToPop.push_back(&port);
 			}
 		}
-	}
-
-	void CompositeUnit::notify_new_unbound_internal_port(Port& port) {
-		Port& exportedPort = addExport(port, std::make_unique<Port>(*this, port.outgoing));
-		if (parent) {
-			parent->notify_new_unbound_internal_port(exportedPort);
+		// Handle touched junctions
+		for (const auto& [junction, info] : touchedJunctionsInfo) {
+			if (junction->parent != this) {
+				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id, name()).c_str());
+			}
+			bool isExported = junction->isExported;
+			bool isBoundToUnpopped = junction->ports.size() != info.portsFromUnitsToPop.size();
+			if (isExported) {
+				// Migrate to existing case
+				Port& exportedPort = *exports.at(junction);
+				Junction& externalJunction = *exportedPort.junction;
+				for (Port* port : info.portsFromUnitsToPop) {
+					port->unbind();
+					port->bind(externalJunction);
+				}
+				if (!isBoundToUnpopped) {
+					exportedPort.unbind();
+					remove_export_raw(*junction);
+					design->destroy(*junction);
+				}
+			} else if(!isBoundToUnpopped) {
+				// Give away case
+				junctions.erase(junction);
+				parent->junctions.emplace(junction);
+				junction->parent = parent;
+			} else {
+				// Create export case
+				Junction& externalJunction = Factory::in(*parent).create_junction();
+				for (Port* port : info.portsFromUnitsToPop) {
+					port->unbind();
+					port->bind(externalJunction);
+				}
+				Port& exportedPort = add_export_raw(*junction);
+				exportedPort.bind(externalJunction);
+			}
 		}
-	}
-
-	void CompositeUnit::notify_removed_unbound_internal_port(Port& port) {
-		if (exports.at(&port)->is_bound()) {
-			exports.at(&port)->unbind(false);
-		} else if (parent) {
-			parent->notify_removed_unbound_internal_port(*exports.at(&port));
-		}
-		removeExport(port);
-	}
-
-	void CompositeUnit::notify_internal_port_switch(Port& oldPort, Port& newPort) {
-		addExport(newPort, removeExport(oldPort));
 	}
 
 	std::string CompositeUnit::name() const {
@@ -195,7 +148,7 @@ namespace Reflux::Engine::Design {
 	}
 
 	int CompositeUnit::node_count() const {
-		int count = static_cast<int>(junctions.size());
+		int count = static_cast<int>(junctions.size() - ports.size());
 		for (auto unit = units.begin(); unit != units.end(); unit++) {
 			count += (*unit)->node_count();
 		}
@@ -211,26 +164,27 @@ namespace Reflux::Engine::Design {
 	}
 
 	void CompositeUnit::render(Simulation::GraphBuilder& graphBuilder, const std::vector<Simulation::Node*>& bindings) const {
-		std::unordered_map<const Junction*, Simulation::Node*> nodeLookup;
-		std::unordered_map<const Port*, Simulation::Node*> externalBindingLookup{};
+		std::unordered_map<const Junction*, Simulation::Node*> internalNodeLookup;
+		std::unordered_map<const Junction*, Simulation::Node*> exportedNodeLookup{};
 		// Don't use ports iterators as its iterator is non-const to enable returning a non-const Port&. :/
 		for (auto i = 0; i < port_count(); i++) {
-			Port* port = std::next(exports.begin(), i)->first;
-			externalBindingLookup[port] = bindings[i];
+			Junction* junction = std::next(exports.begin(), i)->first;
+			exportedNodeLookup[junction] = bindings[i];
 		}
 		for (Junction* junction : junctions) {
-			nodeLookup[junction] = &graphBuilder.add_node();
+			if (!junction->isExported) {
+				internalNodeLookup[junction] = &graphBuilder.add_node();
+			}
 		}
 		for (BaseUnit* unit : units) {
 			std::vector<Simulation::Node*> unitBindings;
 			unitBindings.reserve(unit->ports.size());
 			for (Port& port : unit->ports) {
 				Simulation::Node* boundNode;
-				// If port is unbound that means it's exported
-				if (port.is_bound()) {
-					boundNode = nodeLookup.at(port.junction);
+				if (port.junction->isExported) {
+					boundNode = exportedNodeLookup.at(port.junction);
 				} else {
-					boundNode = externalBindingLookup.at(&port);
+					boundNode = internalNodeLookup.at(port.junction);
 				}
 				unitBindings.push_back(boundNode);
 			}
@@ -242,16 +196,13 @@ namespace Reflux::Engine::Design {
 		bool pass = true;
 		for (BaseUnit* unit : units) {
 			for (Port& port : unit->ports) {
-				if (port.is_bound()) {
-					if (!junctions.contains(port.junction)) {
-						output << ("Internal port bound to external junction.");
-						pass = false;
-					}
-				} else {
-					if (!exports.contains(&port)) {
-						output << ("Unbound internal port not exported.");
-						pass = false;
-					}
+				if (!port.is_bound()) {
+					output << ("Unbound port.") << std::endl;
+					pass = false;
+				}
+				if (!junctions.contains(port.junction)) {
+					output << ("Internal port bound to external junction.") << std::endl;
+					pass = false;
 				}
 			}
 			pass &= unit->validate(output);
@@ -259,22 +210,54 @@ namespace Reflux::Engine::Design {
 		for (Junction* junction : junctions) {
 			for (Port* port : junction->ports) {
 				if (!units.contains(&port->unit)) {
-					output << ("External unit bound to internal junction.");
+					output << ("External unit bound to internal junction.") << std::endl;
 					pass = false;
 				}
 			}
+			if (junction->ports.size() == 0) {
+				output << ("Junction has no connected units.") << std::endl;
+				pass = false;
+			}
+			if (junction->isExported != exports.contains(junction)) {
+				output << ("Junction isExported flag inconsistent with actual export registry.") << std::endl;
+				pass = false;
+			}
 		}
 		if (exports.size() != exportsReverseLookup.size()) {
-			output << ("exportsReverseLookup different length from exports");
+			output << ("exportsReverseLookup different length from exports") << std::endl;
 			pass = false;
 		}
 		for (auto exp = exports.begin(); exp != exports.end(); exp++) {
 			if (!exportsReverseLookup.contains(exp->second.get()) || exportsReverseLookup.at(exp->second.get()) != exp->first) {
-				output << ("exportsReverseLookup inconsistent with exports.");
+				output << ("exportsReverseLookup inconsistent with exports.") << std::endl;
 				pass = false;
 			}
 		}
 		return pass;
+	}
+
+	Port& CompositeUnit::get_export(Junction& junction) {
+		return *exports.at(&junction);
+	}
+
+	Junction& CompositeUnit::add_export(Junction& junction) {
+		Port& exportedPort = add_export_raw(junction);
+		// TODO: make this work for exporting from design root
+		if (!parent) {
+			throw std::runtime_error("Cannot add export to root unit.");
+		}
+		Junction& exportedJunction = Factory::in(*parent).create_junction();
+		exportedPort.bind(exportedJunction);
+		return exportedJunction;
+	}
+
+	void CompositeUnit::remove_export(Junction& junction) {
+		Port* exportedPort = exports.at(&junction).get();
+		Junction& exportedJunction = exportedPort->unbind();
+		if (exportedJunction.ports.size() == 0) {
+			design->destroy(exportedJunction);
+		}
+		remove_export_raw(junction);
 	}
 
 	// PRIVATE
@@ -288,26 +271,29 @@ namespace Reflux::Engine::Design {
 	}
 
 	// Cannot take const internalPort as reverseLookup needs to be able to return a non-const internal port
-	Port& CompositeUnit::addExport(Port& internalPort, std::unique_ptr<Port>&& exportedPort) {
-		Port* exportPtr = exportedPort.get();
-		if (!exports.emplace(&internalPort, std::move(exportedPort)).second) {
-			throw std::runtime_error("internalPort is already exported.");
+	Port& CompositeUnit::add_export_raw(Junction& junction) {
+		auto emplaceResult = exports.emplace(&junction, std::make_unique<Port>(*this, false));
+		if (!emplaceResult.second) {
+			throw std::runtime_error("Junction is already exported.");
 		}
-		if (!exportsReverseLookup.emplace(exportPtr, &internalPort).second) {
+		Port* exportedPort = emplaceResult.first->second.get();
+		if (!exportsReverseLookup.emplace(exportedPort, &junction).second) {
 			throw std::runtime_error("exportedPort is already registered.");
 		}
-		return *exportPtr;
+		junction.isExported = true;
+		return *exportedPort;
 	}
 
-	std::unique_ptr<Port> CompositeUnit::removeExport(Port& internalPort) {
-		if (!exports.contains(&internalPort)) {
-			throw std::runtime_error("Port is not exported.");
+	std::unique_ptr<Port> CompositeUnit::remove_export_raw(Junction& junction) {
+		if (!exports.contains(&junction)) {
+			throw std::runtime_error("Junction is not exported.");
 		}
-		std::unique_ptr<Port> exportedPort = std::move(exports.at(&internalPort));
-		exports.erase(&internalPort);
+		std::unique_ptr<Port> exportedPort = std::move(exports.at(&junction));
+		exports.erase(&junction);
 		if (!exportsReverseLookup.erase(exportedPort.get())) {
 			throw std::runtime_error("Exported port was already removed.");
 		}
+		junction.isExported = false;
 		return exportedPort;
 	}
 

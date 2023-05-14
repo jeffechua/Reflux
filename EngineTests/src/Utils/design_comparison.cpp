@@ -9,7 +9,10 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 namespace Reflux::Engine::TestUtils {
 
 	void validate_and_assert_composite_unit_counts(CompositeUnit& unit, int portCount, int unitCount, int junctionCount) {
-		Assert::IsTrue(unit.validate(std::cerr));
+		std::stringstream stream;
+		bool valid = unit.validate(stream);
+;		Logger::WriteMessage(stream.str().c_str());
+		Assert::IsTrue(valid);
 		Assert::AreEqual(static_cast<size_t>(portCount), unit.ports.size());
 		Assert::AreEqual(static_cast<size_t>(unitCount), unit.units.size());
 		Assert::AreEqual(static_cast<size_t>(junctionCount), unit.junctions.size());

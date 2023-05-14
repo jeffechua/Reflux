@@ -17,8 +17,9 @@ namespace Reflux::Engine::Design {
 		bool outgoing;
 		Port(BaseUnit& unit, bool outgoing);
 		bool is_bound() const;
-		void bind(Junction& to, bool notify = true);
-		Junction& unbind(bool notify = true);
+		Junction& detach();
+		void bind(Junction& to);
+		Junction& unbind();
 
 	};
 

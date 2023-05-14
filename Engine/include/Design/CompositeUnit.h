@@ -11,16 +11,11 @@ namespace Reflux::Engine::Design {
 		std::unordered_set<Junction*> junctions;
 
 		CompositeUnit(UnitId id, Design& design);
-		template<typename T, typename... TConstructorArgs>
-		T& create(TConstructorArgs... args);
-		Junction& create_junction();
-		std::vector<Junction*> get_push_boundary_violations(const std::unordered_set<Junction*>& junctionsToPush, const std::unordered_set<BaseUnit*>& unitsToPush) const;
-		std::vector<BaseUnit*> get_pop_boundary_violations(const std::unordered_set<Junction*>& junctionsToPop, const std::unordered_set<BaseUnit*>& unitsToPop) const;
-		void push(const std::unordered_set<Junction*>& junctionsToPush, const std::unordered_set<BaseUnit*>& unitsToPush);
-		void pop(const std::unordered_set<Junction*>& junctionsToPop, const std::unordered_set<BaseUnit*>& unitsToPop);
-		void notify_new_unbound_internal_port(Port& port);
-		void notify_removed_unbound_internal_port(Port& port);
-		void notify_internal_port_switch(Port& oldPort, Port& newPort);
+		void push(const std::unordered_set<BaseUnit*>& units);
+		void pop(const std::unordered_set<BaseUnit*>& units);
+		Port& get_export(Junction& junction);
+		Junction& add_export(Junction& junction);
+		void remove_export(Junction& junction);
 
 		// BaseUnit implementations
 		std::string name() const override;
@@ -34,24 +29,11 @@ namespace Reflux::Engine::Design {
 		size_t port_count() const override;
 		Port& get_port(size_t i) override;
 		// New members
-		std::unordered_map<Port*, std::unique_ptr<Port>> exports;
-		std::unordered_map<Port*, Port*> exportsReverseLookup;
-		Port& addExport(Port& internalPort, std::unique_ptr<Port>&& exportedPort);
-		std::unique_ptr<Port> removeExport(Port& internalPort);
+		std::unordered_map<Junction*, std::unique_ptr<Port>> exports;
+		std::unordered_map<Port*, Junction*> exportsReverseLookup;
+		Port& add_export_raw(Junction& junction);
+		std::unique_ptr<Port> remove_export_raw(Junction& junction);
 
 	};
-
-	// IMPLEMENTATION
-
-	template<typename T, typename... TConstructorArgs>
-	T& CompositeUnit::create(TConstructorArgs... args) {
-		T& newUnit = design->create<T>(args...);
-		newUnit.parent = this;
-		units.insert(&newUnit);
-		for (Port& port : newUnit.ports) {
-			notify_new_unbound_internal_port(port);
-		}
-		return newUnit;
-	}
 
 }

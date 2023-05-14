@@ -1,5 +1,6 @@
 #include "Engine/pch.h"
 #include <stdexcept>
+#include <iostream>
 #include "../../include/Design/Design.h"
 #include "../../include/Design/CompositeUnit.h"
 
@@ -12,12 +13,6 @@ namespace Reflux::Engine::Design {
 		units[0] = std::unique_ptr<BaseUnit>(root);
 	}
 
-	Junction& Design::create_junction() {
-		Junction* ptr = new Junction(nextJunctionId++);
-		junctions.emplace(ptr->id, std::unique_ptr<Junction>(ptr));
-		return *ptr;
-	}
-
 	void Design::destroy(BaseUnit& unit) {
 		if (&unit == root) {
 			throw std::runtime_error("Cannot destroy root unit.");
@@ -25,26 +20,24 @@ namespace Reflux::Engine::Design {
 		// Don't need to clone since unbinding a unit port doesn't mutate its ports list
 		for (Port& port : unit.ports) {
 			if (port.is_bound()) {
-				port.unbind(false);
-			} else if (unit.parent) {
-				unit.parent->notify_removed_unbound_internal_port(port);
+				Junction& junction = port.unbind();
+				if (junction.ports.size() == 0) {
+					destroy(junction);
+				}
 			}
 		}
-		if (unit.parent) {
-			unit.parent->units.erase(&unit);
-		}
+		unit.parent->units.erase(&unit);
 		recursively_unregister(&unit);
 	}
 
 	void Design::destroy(Junction& junction) {
-		// Need to clone ports since unbinding junction ports mutates junction.ports
-		std::vector<Port*> ports{ junction.ports.begin(), junction.ports.end() };
-		for (Port* port : ports) {
-			port->unbind();
+		if (junction.ports.size() > 0) {
+			throw std::runtime_error("Cannot destroy junction with connected units.");
 		}
-		if (junction.parent) {
-			junction.parent->junctions.erase(&junction);
+		if (junction.isExported) {
+			junction.parent->remove_export(junction);
 		}
+		junction.parent->junctions.erase(&junction);
 		junctions.erase(junction.id);
 	}
 
@@ -73,7 +66,31 @@ namespace Reflux::Engine::Design {
 		return graphBuilder.build();
 	}
 
+	bool Design::validate(std::ostream& output) const {
+		bool pass = true;
+		for (const auto& [_, junction] : junctions) {
+			if (junction->parent == nullptr) {
+				output << ("Parentless junction.") << std::endl;
+				pass = false;
+			}
+		}
+		for (const auto& [_, unit] : units) {
+			if (unit->parent == nullptr && unit.get() != root) {
+				output << ("Parentless unit.") << std::endl;
+				pass = false;
+			}
+		}
+		pass |= root->validate(output);
+		return pass;
+	}
+
 	// PRIVATE
+
+	Junction& Design::make_junction() {
+		Junction* ptr = new Junction(nextJunctionId++);
+		junctions.emplace(ptr->id, std::unique_ptr<Junction>(ptr));
+		return *ptr;
+	}
 
 	void Design::recursively_unregister(BaseUnit* unit) {
 		if (CompositeUnit* compositeUnit = dynamic_cast<CompositeUnit*>(unit)) {

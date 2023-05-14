@@ -18,10 +18,10 @@ namespace Reflux::Engine::Design {
 		public:
 			class Iterator;
 			Ports(BaseUnit& unit);
-			size_t size();
+			size_t size() const;
 			Port& operator[](size_t index);
-			Iterator begin();
-			Iterator end();
+			Iterator begin() const;
+			Iterator end() const;
 		private:
 			BaseUnit& unit;
 		};

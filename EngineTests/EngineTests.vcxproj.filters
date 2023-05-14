@@ -13,16 +13,10 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\Design">
-      <UniqueIdentifier>{2c5e3ac6-b542-49d1-9171-7fbd8622ad33}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Design\FlatDesignTests.cpp">
-      <Filter>Source Files\Design</Filter>
     </ClCompile>
     <ClCompile Include="src\Utils\graph_comparison.cpp">
       <Filter>Source Files</Filter>
@@ -43,6 +37,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Design\DestroyTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Design\FlatDesignTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

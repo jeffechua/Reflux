@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include "../../include/Design/Port.h"
 #include "../../include/Design/CompositeUnit.h"
+#include "../../include/Design/Factory.h"
 
 namespace Reflux::Engine::Design {
 
@@ -11,7 +12,16 @@ namespace Reflux::Engine::Design {
 		return junction != nullptr;
 	}
 
-	void Port::bind(Junction& to, bool notify) {
+	Junction& Port::detach() {
+		if (is_bound()) {
+			unbind();
+		}
+		Junction& junction = Factory::in(*unit.parent).create_junction();
+		bind(junction);
+		return junction;
+	}
+
+	void Port::bind(Junction& to) {
 		if (is_bound()) {
 			throw new std::runtime_error("Port is already bound.");
 		}
@@ -20,22 +30,16 @@ namespace Reflux::Engine::Design {
 		}
 		junction = &to;
 		to.ports.insert(this);
-		if (notify && unit.parent) {
-			unit.parent->notify_removed_unbound_internal_port(*this);
-		}
 	}
 
-	Junction& Port::unbind(bool notify) {
+	Junction& Port::unbind() {
 		if (!is_bound()) {
 			throw new std::runtime_error("Port is already unbound.");
 		}
 		junction->ports.erase(this);
-		Junction& oldJunction = *junction;
+		Junction& junctionRef = *junction;
 		junction = nullptr;
-		if (notify && unit.parent) {
-			unit.parent->notify_new_unbound_internal_port(*this);
-		}
-		return oldJunction;
+		return junctionRef;
 	}
 
 }

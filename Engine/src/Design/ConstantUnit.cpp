@@ -7,17 +7,9 @@ namespace Reflux::Engine::Design {
 
 	// PUBLIC
 
-	ConstantUnit::ConstantUnit(UnitId id, Design& design, ConstantUnit::Type type, double R, double e) : BaseUnit(id, design), portsArray{ Port(*this, false), Port(*this, true) }, type(type), R(R), e(e) {}
+	ConstantUnit::ConstantUnit(UnitId id, Design& design, double R, double e) : BaseUnit(id, design), portsArray{ Port(*this, false), Port(*this, true) }, R(R), e(e) {}
 
 	std::string ConstantUnit::name() const {
-		/*switch (type) {
-			case Type::RESISTOR:
-				return std::format("%fQ Resistor (%d)", R, id);
-			case Type::CELL:
-				return std::format("%fQ Cell (%d)", e, id);
-			case Type::RESISTIVE_CELL:
-				return std::format("%fQ-%fV Resistor (%d)", R, e, id);;
-		}*/
 		return std::to_string(id);
 	}
 
@@ -34,17 +26,7 @@ namespace Reflux::Engine::Design {
 	}
 
 	bool ConstantUnit::validate(std::ostream& output) const {
-		switch (type) {
-			case Type::RESISTOR:
-				return e == 0;
-			case Type::CELL:
-				return R == 0;
-			case Type::RESISTIVE_CELL:
-				return true;
-			default:
-				output << std::format("Unknown ConstantUnit type \"jsadbgkalhb\"");
-				return false;
-		}
+		return true;
 	}
 
 	// PRIVATE
