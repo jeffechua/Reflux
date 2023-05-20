@@ -12,6 +12,8 @@ namespace Reflux::Engine::Design {
 
 	class BaseUnit {
 
+		friend CompositeUnit;
+
 	public:
 
 		class Ports {
@@ -26,11 +28,11 @@ namespace Reflux::Engine::Design {
 			BaseUnit& unit;
 		};
 
-		UnitId id;
+		UnitId id_;
 		CompositeUnit* parent;
 		Design* design;
 		Ports ports;
-		BaseUnit(UnitId id, Design& design);
+		BaseUnit(UnitId id_, Design& design);
 		virtual std::string name() const = 0;
 		virtual int node_count() const = 0;
 		virtual int edge_count() const = 0;

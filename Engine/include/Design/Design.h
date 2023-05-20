@@ -18,21 +18,19 @@ namespace Reflux::Engine::Design {
 
 		std::string name;
 		CompositeUnit* root;
+		std::unordered_map<UnitId, std::unique_ptr<BaseUnit>> units;
+		std::unordered_map<JunctionId, std::unique_ptr<Junction>> junctions;
 		Design(std::string name = "MyDesign");
-		const std::unordered_map<UnitId, std::unique_ptr<BaseUnit>>& get_units() const;
-		const std::unordered_map<UnitId, std::unique_ptr<Junction>>& get_junctions() const;
-		bool contains_unit(UnitId id);
-		bool contains_junction(JunctionId id);
-		BaseUnit& get_unit(UnitId id);
-		Junction& get_junction(JunctionId id);
+		bool contains_unit(UnitId id_);
+		bool contains_junction(JunctionId id_);
+		BaseUnit& get_unit(UnitId id_);
+		Junction& get_junction(JunctionId id_);
 		Simulation::Graph build();
 		bool validate(std::ostream& output) const;
 
 	private:
 		UnitId nextUnitId;
 		JunctionId nextJunctionId;
-		std::unordered_map<UnitId, std::unique_ptr<BaseUnit>> units_;
-		std::unordered_map<JunctionId, std::unique_ptr<Junction>> junctions_;
 		template<typename T, typename... TConstructorArgs>
 		T& make_unit(TConstructorArgs... args);
 		Junction& make_junction();
@@ -45,7 +43,7 @@ namespace Reflux::Engine::Design {
 	template<typename T, typename... TConstructorArgs>
 	T& Design::make_unit(TConstructorArgs... args) {
 		T* ptr = new T(nextUnitId++, *this, args...);
-		units_[ptr->id] = std::unique_ptr<BaseUnit>(ptr);
+		units[ptr->id_] = std::unique_ptr<BaseUnit>(ptr);
 		return *ptr;
 	}
 

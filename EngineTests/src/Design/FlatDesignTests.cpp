@@ -13,7 +13,9 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace Reflux::Engine::Design::Tests {
+
 	TEST_CLASS(FlatDesignTests) {
+
 public:
 
 	TEST_METHOD(TestOneEdge) {

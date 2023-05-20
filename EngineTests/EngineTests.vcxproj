@@ -162,6 +162,7 @@
   <ItemGroup>
     <ClInclude Include="include\Utils\design_comparison.h" />
     <ClInclude Include="include\Utils\graph_comparison.h" />
+    <ClCompile Include="src\Design\AddRemoveExportTests.cpp" />
     <ClCompile Include="src\Design\CompositePushPullTests.cpp" />
     <ClCompile Include="src\Design\DestroyTests.cpp" />
     <ClCompile Include="src\Design\NestedCompositesTest.cpp" />

@@ -12,7 +12,9 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 namespace Reflux::Engine::Design::Tests {
+
 	TEST_CLASS(CompositesPushPullTests) {
+
 public:
 
 	TEST_METHOD(TestPushEdge) {

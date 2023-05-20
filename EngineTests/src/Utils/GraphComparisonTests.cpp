@@ -13,6 +13,7 @@ using namespace Reflux::Engine::Simulation;
 namespace Reflux::Engine::TestUtils {
 
 	TEST_CLASS(GraphComparisonTests) {
+
 public:
 
 	TEST_METHOD(TestOneNode) {

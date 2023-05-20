@@ -8,32 +8,25 @@ namespace Reflux::Engine::Design {
 
 	// PUBLIC
 
-	Design::Design(std::string name) : name(name), nextUnitId(0), nextJunctionId(0), units_(), junctions_() {
+	Design::Design(std::string name) : name(name), nextUnitId(0), nextJunctionId(0), units(), junctions() {
 		root = new CompositeUnit(nextUnitId++, *this);
-		units_[0] = std::unique_ptr<BaseUnit>(root);
+		units[0] = std::unique_ptr<BaseUnit>(root);
 	}
 
-	const std::unordered_map<UnitId, std::unique_ptr<BaseUnit>>& Design::get_units() const {
-		return units_;
-	}
-	const std::unordered_map<UnitId, std::unique_ptr<Junction>>& Design::get_junctions() const {
-		return junctions_;
+	bool Design::contains_unit(UnitId id_) {
+		return units.contains(id_);
 	}
 
-	bool Design::contains_unit(UnitId id) {
-		return units_.contains(id);
+	bool Design::contains_junction(JunctionId id_) {
+		return junctions.contains(id_);
 	}
 
-	bool Design::contains_junction(JunctionId id) {
-		return junctions_.contains(id);
+	BaseUnit& Design::get_unit(UnitId id_) {
+		return *units.at(id_);
 	}
 
-	BaseUnit& Design::get_unit(UnitId id) {
-		return *units_.at(id);
-	}
-
-	Junction& Design::get_junction(JunctionId id) {
-		return *junctions_.at(id);
+	Junction& Design::get_junction(JunctionId id_) {
+		return *junctions.at(id_);
 	}
 
 	Simulation::Graph Design::build() {
@@ -47,13 +40,13 @@ namespace Reflux::Engine::Design {
 
 	bool Design::validate(std::ostream& output) const {
 		bool pass = true;
-		for (const auto& [_, junction] : junctions_) {
+		for (const auto& [_, junction] : junctions) {
 			if (junction->parent == nullptr) {
 				output << ("Parentless junction.") << std::endl;
 				pass = false;
 			}
 		}
-		for (const auto& [_, unit] : units_) {
+		for (const auto& [_, unit] : units) {
 			if (unit->parent == nullptr && unit.get() != root) {
 				output << ("Parentless unit.") << std::endl;
 				pass = false;
@@ -67,22 +60,22 @@ namespace Reflux::Engine::Design {
 
 	Junction& Design::make_junction() {
 		Junction* ptr = new Junction(nextJunctionId++);
-		junctions_.emplace(ptr->id, std::unique_ptr<Junction>(ptr));
+		junctions.emplace(ptr->id_, std::unique_ptr<Junction>(ptr));
 		return *ptr;
 	}
 
 	void Design::recursively_unregister(BaseUnit* unit) {
 		if (CompositeUnit* compositeUnit = dynamic_cast<CompositeUnit*>(unit)) {
-			for (Junction* junction : compositeUnit->get_junctions()) {
-				junctions_.erase(junction->id);
+			for (Junction* junction : compositeUnit->junctions) {
+				junctions.erase(junction->id_);
 			}
-			for (BaseUnit* subunit : compositeUnit->get_units()) {
+			for (BaseUnit* subunit : compositeUnit->units) {
 				recursively_unregister(subunit);
 			}
 		}
 		// C28182 warning if I don't gate this because it doesn't understand dynamic_cast
 		if (unit) {
-			units_.erase(unit->id);
+			units.erase(unit->id_);
 		}
 	}
 

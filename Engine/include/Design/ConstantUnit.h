@@ -10,7 +10,7 @@ namespace Reflux::Engine::Design {
 	public:
 		double R;
 		double e;
-		ConstantUnit(UnitId id, Design& design, double R, double e);
+		ConstantUnit(UnitId id_, Design& design, double R, double e);
 		std::string name() const override;
 		int node_count() const override;
 		int edge_count() const override;

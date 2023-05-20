@@ -10,14 +10,7 @@ namespace Reflux::Engine::Design {
 
 	// PUBLIC
 
-	CompositeUnit::CompositeUnit(UnitId id, Design& design) : BaseUnit(id, design), exports_{}, exportsReverseLookup_{} {}
-
-	const std::unordered_set<BaseUnit*>& CompositeUnit::get_units() const {
-		return units_;
-	}
-	const std::unordered_set<Junction*>& CompositeUnit::get_junctions() const {
-		return junctions_;
-	}
+	CompositeUnit::CompositeUnit(UnitId id_, Design& design) : BaseUnit(id_, design), units{}, junctions{}, exports_ {}, exportsReverseLookup_{} {}
 
 	void CompositeUnit::push(const std::unordered_set<BaseUnit*>& unitsToPush) {
 		if (parent == nullptr) {
@@ -33,8 +26,8 @@ namespace Reflux::Engine::Design {
 			if (unit->parent != parent) {
 				throw std::runtime_error(std::format("%s is not a sibling of \"%s\"", unit->name(), name()).c_str());
 			}
-			unit->parent->units_.erase(unit);
-			units_.emplace(unit);
+			unit->parent->units.erase(unit);
+			units.emplace(unit);
 			unit->parent = this;
 			// Scan ports for touched junctions
 			for (Port& port : unit->ports) {
@@ -47,7 +40,7 @@ namespace Reflux::Engine::Design {
 			if (touchedJunctionsInfo.contains(port.junction)) {
 				Port*& portFromMe = touchedJunctionsInfo.at(port.junction).portFromMe;
 				if (portFromMe) {
-					throw std::runtime_error(std::format("Junction %d is bound to a \"%s\" of multiple times", port.junction->id, name()).c_str());
+					throw std::runtime_error(std::format("Junction %d is bound to a \"%s\" of multiple times", port.junction->id_, name()).c_str());
 				} else {
 					portFromMe = &port;
 				}
@@ -56,7 +49,7 @@ namespace Reflux::Engine::Design {
 		// Handle touched junctions
 		for (const auto& [junction, info] : touchedJunctionsInfo) {
 			if (junction->parent != parent) {
-				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id, name()).c_str());
+				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id_, name()).c_str());
 			}
 			bool isBoundToMe = info.portFromMe;
 			bool isBoundToUnpushed = junction->ports.size() > info.portsFromUnitsToPush.size() + (isBoundToMe ? 1 : 0);
@@ -74,8 +67,8 @@ namespace Reflux::Engine::Design {
 				}
 			} else if (!isBoundToUnpushed && !junction->isExported){
 				// Steal case
-				junction->parent->junctions_.erase(junction);
-				junctions_.emplace(junction);
+				junction->parent->junctions.erase(junction);
+				junctions.emplace(junction);
 				junction->parent = this;
 			} else {
 				// Create and migrate case
@@ -103,8 +96,8 @@ namespace Reflux::Engine::Design {
 			if (unit->parent != this) {
 				throw std::runtime_error(std::format("%s is not a child of \"%s\"", unit->name(), name()).c_str());
 			}
-			units_.erase(unit);
-			parent->units_.emplace(unit);
+			units.erase(unit);
+			parent->units.emplace(unit);
 			unit->parent = parent;
 			// Scan ports for touched junctions
 			for (Port& port : unit->ports) {
@@ -115,7 +108,7 @@ namespace Reflux::Engine::Design {
 		// Handle touched junctions
 		for (const auto& [junction, info] : touchedJunctionsInfo) {
 			if (junction->parent != this) {
-				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id, name()).c_str());
+				throw std::runtime_error(std::format("Junction %d is not a child of \"%s\"", junction->id_, name()).c_str());
 			}
 			bool isExported = junction->isExported;
 			bool isBoundToUnpopped = junction->ports.size() != info.portsFromUnitsToPop.size();
@@ -134,8 +127,8 @@ namespace Reflux::Engine::Design {
 				}
 			} else if(!isBoundToUnpopped) {
 				// Give away case
-				junctions_.erase(junction);
-				parent->junctions_.emplace(junction);
+				junctions.erase(junction);
+				parent->junctions.emplace(junction);
 				junction->parent = parent;
 			} else {
 				// Create export case
@@ -151,12 +144,12 @@ namespace Reflux::Engine::Design {
 	}
 
 	std::string CompositeUnit::name() const {
-		return std::format("Composite Unit %d/%d/%d (%d)", units_.size(), junctions_.size(), exports_.size(), id);
+		return std::format("Composite Unit %d/%d/%d (%d)", units.size(), junctions.size(), exports_.size(), id_);
 	}
 
 	int CompositeUnit::node_count() const {
-		int count = static_cast<int>(junctions_.size() - ports.size());
-		for (auto unit = units_.begin(); unit != units_.end(); unit++) {
+		int count = static_cast<int>(junctions.size() - ports.size());
+		for (auto unit = units.begin(); unit != units.end(); unit++) {
 			count += (*unit)->node_count();
 		}
 		return count;
@@ -164,7 +157,7 @@ namespace Reflux::Engine::Design {
 
 	int CompositeUnit::edge_count() const {
 		int count = 0;
-		for (auto unit = units_.begin(); unit != units_.end(); unit++) {
+		for (auto unit = units.begin(); unit != units.end(); unit++) {
 			count += (*unit)->edge_count();
 		}
 		return count;
@@ -178,12 +171,12 @@ namespace Reflux::Engine::Design {
 			Junction* junction = std::next(exports_.begin(), i)->first;
 			exportedNodeLookup[junction] = bindings[i];
 		}
-		for (Junction* junction : junctions_) {
+		for (Junction* junction : junctions) {
 			if (!junction->isExported) {
 				internalNodeLookup[junction] = &graphBuilder.add_node();
 			}
 		}
-		for (BaseUnit* unit : units_) {
+		for (BaseUnit* unit : units) {
 			std::vector<Simulation::Node*> unitBindings;
 			unitBindings.reserve(unit->ports.size());
 			for (Port& port : unit->ports) {
@@ -201,22 +194,22 @@ namespace Reflux::Engine::Design {
 
 	bool CompositeUnit::validate(std::ostream& output) const {
 		bool pass = true;
-		for (BaseUnit* unit : units_) {
+		for (BaseUnit* unit : units) {
 			for (Port& port : unit->ports) {
 				if (!port.is_bound()) {
 					output << ("Unbound port.") << std::endl;
 					pass = false;
 				}
-				if (!junctions_.contains(port.junction)) {
+				if (!junctions.contains(port.junction)) {
 					output << ("Internal port bound to external junction.") << std::endl;
 					pass = false;
 				}
 			}
 			pass &= unit->validate(output);
 		}
-		for (Junction* junction : junctions_) {
+		for (Junction* junction : junctions) {
 			for (Port* port : junction->ports) {
-				if (!units_.contains(&port->unit)) {
+				if (!units.contains(&port->unit)) {
 					output << ("External unit bound to internal junction.") << std::endl;
 					pass = false;
 				}
@@ -248,11 +241,11 @@ namespace Reflux::Engine::Design {
 	}
 
 	Junction& CompositeUnit::add_export(Junction& junction) {
-		Port& exportedPort = add_export_raw_(junction);
 		// TODO: make this work for exporting from design root
 		if (!parent) {
 			throw std::runtime_error("Cannot add export to root unit.");
 		}
+		Port& exportedPort = add_export_raw_(junction);
 		Junction& exportedJunction = Factory::in(*parent).create_junction();
 		exportedPort.bind(exportedJunction);
 		return exportedJunction;

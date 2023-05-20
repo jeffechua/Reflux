@@ -6,7 +6,7 @@
 
 namespace Reflux::Engine::Design {
 
-	Junction::Junction(JunctionId id) : id(id), parent(nullptr), isExported(false) {}
+	Junction::Junction(JunctionId id_) : id_(id_), parent(nullptr), isExported(false) {}
 
 	Junction& Junction::merge(Junction& first_in, Junction& second_in) {
 		bool flip = (second_in.isExported && !first_in.isExported);

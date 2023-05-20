@@ -7,10 +7,10 @@ namespace Reflux::Engine::Design {
 
 	// PUBLIC
 
-	ConstantUnit::ConstantUnit(UnitId id, Design& design, double R, double e) : BaseUnit(id, design), portsArray{ Port(*this, false), Port(*this, true) }, R(R), e(e) {}
+	ConstantUnit::ConstantUnit(UnitId id_, Design& design, double R, double e) : BaseUnit(id_, design), portsArray{ Port(*this, false), Port(*this, true) }, R(R), e(e) {}
 
 	std::string ConstantUnit::name() const {
-		return std::to_string(id);
+		return std::to_string(id_);
 	}
 
 	int ConstantUnit::node_count() const {

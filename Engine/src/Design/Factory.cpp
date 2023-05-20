@@ -7,7 +7,7 @@ namespace Reflux::Engine::Design {
 	Junction& Factory::CreationContext::create_junction() {
 		Junction& newJunction = design.make_junction();
 		newJunction.parent = &container;
-		container.junctions_.insert(&newJunction);
+		container.junctions.insert(&newJunction);
 		return newJunction;
 	}
 
@@ -31,7 +31,7 @@ namespace Reflux::Engine::Design {
 				}
 			}
 		}
-		unit.parent->units_.erase(&unit);
+		unit.parent->units.erase(&unit);
 		unit.design->recursively_unregister(&unit);
 	}
 
@@ -42,8 +42,8 @@ namespace Reflux::Engine::Design {
 		if (junction.isExported) {
 			junction.parent->remove_export(junction);
 		}
-		junction.parent->junctions_.erase(&junction);
-		junction.parent->design->junctions_.erase(junction.id);
+		junction.parent->junctions.erase(&junction);
+		junction.parent->design->junctions.erase(junction.id_);
 	}
 
 }

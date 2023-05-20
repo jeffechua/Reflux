@@ -16,7 +16,7 @@ namespace Reflux::Engine::Design {
 			TUnit& create_unit(TConstructorArgs... args) {
 				TUnit& newUnit = design.make_unit<TUnit>(args...);
 				newUnit.parent = &container;
-				container.units_.insert(&newUnit);
+				container.units.insert(&newUnit);
 				for (Port& port : newUnit.ports) {
 					Junction& junction = create_junction();
 					port.bind(junction);

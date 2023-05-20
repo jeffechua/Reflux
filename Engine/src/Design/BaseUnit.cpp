@@ -3,7 +3,7 @@
 
 namespace Reflux::Engine::Design {
 	
-	BaseUnit::BaseUnit(UnitId id, Design& design) : id(id), design(&design), parent(nullptr), ports(*this) {}
+	BaseUnit::BaseUnit(UnitId id_, Design& design) : id_(id_), design(&design), parent(nullptr), ports(*this) {}
     
     // BASEUNIT::PORT
 

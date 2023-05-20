@@ -12,11 +12,11 @@ namespace Reflux::Engine::Design {
 
 	public:
 
-		CompositeUnit(UnitId id, Design& design);
-		const std::unordered_set<BaseUnit*>& get_units() const;
-		const std::unordered_set<Junction*>& get_junctions() const;
-		void push(const std::unordered_set<BaseUnit*>& units_);
-		void pop(const std::unordered_set<BaseUnit*>& units_);
+		CompositeUnit(UnitId id_, Design& design);
+		std::unordered_set<BaseUnit*> units;
+		std::unordered_set<Junction*> junctions;
+		void push(const std::unordered_set<BaseUnit*>& units);
+		void pop(const std::unordered_set<BaseUnit*>& units);
 		Port& get_export(Junction& junction);
 		Junction& add_export(Junction& junction);
 		void remove_export(Junction& junction);
@@ -33,8 +33,6 @@ namespace Reflux::Engine::Design {
 		size_t port_count_() const override;
 		Port& get_port_(size_t i) override;
 		// New members
-		std::unordered_set<BaseUnit*> units_;
-		std::unordered_set<Junction*> junctions_;
 		std::unordered_map<Junction*, std::unique_ptr<Port>> exports_;
 		std::unordered_map<Port*, Junction*> exportsReverseLookup_;
 		Port& add_export_raw_(Junction& junction);
