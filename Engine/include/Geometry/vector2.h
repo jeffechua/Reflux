@@ -35,6 +35,8 @@
 
 #pragma once
 
+#include <stdexcept>        // invalid_argument
+
 namespace Reflux::Engine::Geometry {
 
 	/**
@@ -46,12 +48,32 @@ namespace Reflux::Engine::Geometry {
 	 *
 	 * \since 0.1.0
 	 *
-	 * \headerfile abby.hpp
+	 * \headerfile vector2.hpp
 	 */
 	template <typename T>
 	struct vector2 final {
 		T x{};  ///< The x-coordinate.
 		T y{};  ///< The y-coordinate.
+
+		auto operator[](std::size_t index) -> T& {
+			if (index == 0) {
+				return x;
+			} else if (index == 1) {
+				return y;
+			} else {
+				throw std::invalid_argument{ "vector2: bad subscript index!" };
+			}
+		}
+
+		auto operator[](std::size_t index) const -> const T& {
+			if (index == 0) {
+				return x;
+			} else if (index == 1) {
+				return y;
+			} else {
+				throw std::invalid_argument{ "vector2: bad subscript index!" };
+			}
+		}
 
 		// CUSTOM ADDITIONs
 		template<typename TOut>

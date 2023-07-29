@@ -8,6 +8,14 @@ namespace Reflux::Engine::Design {
 
 	Junction::Junction(JunctionId id_) : id_(id_), parent(nullptr), isExported(false) {}
 
+	Geometry::vector2<int> Junction::get_local_position() {
+		return ports.size() == 0 ? Geometry::vector2<int>(0, 0) : (*ports.begin())->get_local_position();
+	}
+
+	Geometry::vector2<int> Junction::get_world_position() {
+		return ports.size() == 0 ? Geometry::vector2<int>(0, 0) : (*ports.begin())->get_world_position();
+	}
+
 	Junction& Junction::merge(Junction& first_in, Junction& second_in) {
 		bool flip = (second_in.isExported && !first_in.isExported);
 		Junction& first = flip ? second_in : first_in;

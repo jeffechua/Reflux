@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include "Port.h"
+#include "../Geometry/rect.h"
 #include "../Simulation/GraphBuilder.h"
 
 namespace Reflux::Engine::Design {
@@ -33,6 +34,18 @@ namespace Reflux::Engine::Design {
 		Design* design;
 		Ports ports;
 		BaseUnit(UnitId id_, Design& design);
+		
+		void set_local_position(Geometry::vector2<int> position);
+		void set_world_position(Geometry::vector2<int> position);
+		Geometry::vector2<int> get_local_position();
+		Geometry::vector2<int> get_world_position();
+		Geometry::rect<int> get_local_rect();
+		Geometry::rect<int> get_world_rect();
+		virtual bool contains(Geometry::rect<int> rect, bool rectIsLocal = false, bool countTouch = true);
+		virtual bool contained_by(Geometry::rect<int> rect, bool rectIsLocal = false, bool countTouch = true);
+		virtual bool contains(Geometry::vector2<int> position, bool positionIsLocal = false, bool countTouch = true);
+		virtual bool overlaps(Geometry::rect<int> rect, bool rectIsLocal = false, bool countTouch = true);
+
 		virtual std::string name() const = 0;
 		virtual int node_count() const = 0;
 		virtual int edge_count() const = 0;
@@ -45,6 +58,8 @@ namespace Reflux::Engine::Design {
 		virtual void render(Simulation::GraphBuilder& graphBuilder, const std::vector<Simulation::Node*>& bindings) const = 0;
 
 	protected:
+		Geometry::vector2<int> localPosition_;
+		Geometry::rect<int> internalRect_;
 		virtual size_t port_count_() const = 0;
 		virtual Port& get_port_(size_t i) = 0;
 

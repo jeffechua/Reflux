@@ -1,14 +1,27 @@
 #include "Application/pch.h"
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "Application/include/DesignEditorWindow.h"
+#include "Application/include/DesignMouseInputStrategy.h"
 
-namespace Reflux::UI::Editor {
+namespace Reflux::UI {
 
-	DesignEditorWindow::DesignEditorWindow(Design& design) : design(design), gridStep({ 1.0f, 1.0f }), view({ {0.0f, 0.0f}, {0.1f, 0.1f} }
-	) {}
+	DesignEditorWindow::DesignEditorWindow(Design& design) : design(design), gridStep({ 1.0f, 1.0f }), view({ {0.0f, 0.0f}, {0.1f, 0.1f} }), rootMouseInputStrategy(std::make_unique<DesignMouseInputStrategy>(*this)), mouseInputStrategy(rootMouseInputStrategy.get()) {}
+
+	ImVec2 DesignEditorWindow::to_screen_space(vector2<double> designPosition) {
+		return view.inv_transform_position(designPosition) + (canvasP0 + canvasP1) / 2;
+	}
+	vector2<double> DesignEditorWindow::to_design_space(ImVec2 screenPosition) {
+		return view.transform_position(screenPosition - (canvasP0 + canvasP1) / 2);
+	}
 
 	bool DesignEditorWindow::show() {
 		ImGui::Begin(design.name.c_str());
+
+		ImGui::Text("IsMouseDown: %d", ImGui::IsMouseDown(ImGuiMouseButton_Left));
+		ImGui::Text("IsMouseDragging: %d", ImGui::IsMouseDragging(ImGuiMouseButton_Left));
+		ImGui::Text("IsMouseReleased: %d", ImGui::IsMouseReleased(ImGuiMouseButton_Left));
+		ImGui::Text("IsMouseClicked: %d", ImGui::IsMouseClicked(ImGuiMouseButton_Left));
+		ImGui::Text("IsMouseDoubleClicked: %d", ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left));
 
 		static ImVector<ImVec2> points;
 		static ImVec2 scrolling(0.0f, 0.0f);
@@ -76,18 +89,27 @@ namespace Reflux::UI::Editor {
 		// Draw content
 		draw_content(*drawList);
 
+		if (is_active) {
+			if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+				mouseInputStrategy = &mouseInputStrategy->OnMouseClicked(io.MousePos);
+			}
+			if (ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+				mouseInputStrategy = &mouseInputStrategy->OnMouseReleased(io.MousePos);
+			}
+			if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+				mouseInputStrategy = &mouseInputStrategy->OnMouseDragging(io.MousePos);
+			} else if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+				mouseInputStrategy = &mouseInputStrategy->OnMouseDown(io.MousePos);
+			} else {
+				mouseInputStrategy = &mouseInputStrategy->OnMouseHover(io.MousePos);
+			}
+		}
+
 		drawList->PopClipRect();
 
 
 		ImGui::End();
 		return true;
-	}
-
-	ImVec2 DesignEditorWindow::to_screen_space(vector2<double> designPosition) {
-		return view.inv_transform_position(designPosition) + (canvasP0 + canvasP1) / 2;
-	}
-	vector2<double> DesignEditorWindow::to_design_space(ImVec2 screenPosition) {
-		return view.transform_position(screenPosition - (canvasP0 + canvasP1) / 2);
 	}
 
 	void DesignEditorWindow::draw_content(ImDrawList& drawList) {

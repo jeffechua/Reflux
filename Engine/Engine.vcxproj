@@ -209,6 +209,7 @@
     </ClInclude>
     <ClInclude Include="framework.h" />
     <ClInclude Include="include\Geometry\aabb.h" />
+    <ClInclude Include="include\Geometry\rect.h" />
     <ClInclude Include="include\Geometry\transform.h" />
     <ClInclude Include="include\Geometry\vector2.h" />
     <ClInclude Include="include\Simulation\Graph.h" />

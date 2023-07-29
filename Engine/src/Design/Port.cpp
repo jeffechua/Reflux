@@ -8,6 +8,33 @@ namespace Reflux::Engine::Design {
 
 	Port::Port(BaseUnit& unit, bool outgoing) : unit(unit), junction(nullptr), outgoing(outgoing) {}
 
+	void Port::set_internal_position(Geometry::vector2<int> position) {
+		internalPosition_ = position;
+		if (unit.parent) {
+			unit.parent->child_geometry_update(unit);
+		}
+	}
+
+	void Port::set_local_position(Geometry::vector2<int> position) {
+		set_internal_position(position - unit.get_local_position());
+	}
+
+	void Port::set_world_position(Geometry::vector2<int> position) {
+		set_internal_position(position - unit.get_world_position());
+	}
+
+	Geometry::vector2<int> Port::get_internal_position() {
+		return internalPosition_;
+	}
+
+	Geometry::vector2<int> Port::get_local_position() {
+		return internalPosition_ + unit.get_local_position();
+	}
+
+	Geometry::vector2<int> Port::get_world_position() {
+		return internalPosition_ + unit.get_world_position();
+	}
+
 	bool Port::is_bound() const {
 		return junction != nullptr;
 	}

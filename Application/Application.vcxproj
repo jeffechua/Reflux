@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -147,6 +147,8 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="include\ApplicationMain.h" />
     <ClInclude Include="include\DesignEditorWindow.h" />
+    <ClInclude Include="include\DesignMouseInputStrategy.h" />
+    <ClInclude Include="include\IMouseInputStrategy.h" />
     <ClInclude Include="include\IRenderable.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />
@@ -183,6 +185,7 @@
     </ClCompile>
     <ClCompile Include="src\ApplicationMain.cpp" />
     <ClCompile Include="src\DesignEditorWindow.cpp" />
+    <ClCompile Include="src\DesignMouseInputStrategy.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Application.rc" />

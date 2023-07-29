@@ -15,7 +15,7 @@ namespace Reflux::UI {
 		bool show() override;
 
 	private:
-		std::unordered_map<std::unique_ptr<Design>, std::unique_ptr<Editor::DesignEditorWindow>> designs{};
+		std::unordered_map<std::unique_ptr<Design>, std::unique_ptr<DesignEditorWindow>> designs{};
 	};
 
 }

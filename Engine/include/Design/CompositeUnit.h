@@ -1,6 +1,7 @@
 #pragma once
 #include "BaseUnit.h"
 #include "Design.h"
+#include "../Geometry/aabb.h"
 
 namespace Reflux::Engine::Design {
 
@@ -20,6 +21,7 @@ namespace Reflux::Engine::Design {
 		Port& get_export(Junction& junction);
 		Junction& add_export(Junction& junction);
 		void remove_export(Junction& junction);
+		void child_geometry_update(BaseUnit& unit);
 
 		// BaseUnit implementations
 		std::string name() const override;
@@ -29,6 +31,7 @@ namespace Reflux::Engine::Design {
 		bool validate(std::ostream& output) const override;
 
 	private:
+		Geometry::tree<void*, int> tree_;
 		// BaseUnit implementations
 		size_t port_count_() const override;
 		Port& get_port_(size_t i) override;
@@ -37,7 +40,11 @@ namespace Reflux::Engine::Design {
 		std::unordered_map<Port*, Junction*> exportsReverseLookup_;
 		Port& add_export_raw_(Junction& junction);
 		std::unique_ptr<Port> remove_export_raw_(Junction& junction);
-
+		void register_raw_(BaseUnit& unit);
+		void register_raw_(Junction& junction);
+		void unregister_raw_(BaseUnit& unit);
+		void unregister_raw_(Junction& junction);
+		void recalculate_own_rect();
 	};
 
 }

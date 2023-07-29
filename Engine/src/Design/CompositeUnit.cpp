@@ -10,7 +10,7 @@ namespace Reflux::Engine::Design {
 
 	// PUBLIC
 
-	CompositeUnit::CompositeUnit(UnitId id_, Design& design) : BaseUnit(id_, design), units{}, junctions{}, exports_ {}, exportsReverseLookup_{} {}
+	CompositeUnit::CompositeUnit(UnitId id_, Design& design) : BaseUnit(id_, design), units{}, junctions{}, tree_{}, exports_{}, exportsReverseLookup_{} {}
 
 	void CompositeUnit::push(const std::unordered_set<BaseUnit*>& unitsToPush) {
 		if (parent == nullptr) {
@@ -26,8 +26,8 @@ namespace Reflux::Engine::Design {
 			if (unit->parent != parent) {
 				throw std::runtime_error(std::format("%s is not a sibling of \"%s\"", unit->name(), name()).c_str());
 			}
-			unit->parent->units.erase(unit);
-			units.emplace(unit);
+			unit->parent->unregister_raw_(*unit);
+			register_raw_(*unit);
 			unit->parent = this;
 			// Scan ports for touched junctions
 			for (Port& port : unit->ports) {
@@ -65,10 +65,10 @@ namespace Reflux::Engine::Design {
 					Factory::destroy(*junction);
 					remove_export_raw_(internalJunction);
 				}
-			} else if (!isBoundToUnpushed && !junction->isExported){
+			} else if (!isBoundToUnpushed && !junction->isExported) {
 				// Steal case
-				junction->parent->junctions.erase(junction);
-				junctions.emplace(junction);
+				junction->parent->unregister_raw_(*junction);
+				register_raw_(*junction);
 				junction->parent = this;
 			} else {
 				// Create and migrate case
@@ -96,8 +96,8 @@ namespace Reflux::Engine::Design {
 			if (unit->parent != this) {
 				throw std::runtime_error(std::format("%s is not a child of \"%s\"", unit->name(), name()).c_str());
 			}
-			units.erase(unit);
-			parent->units.emplace(unit);
+			unregister_raw_(*unit);
+			parent->register_raw_(*unit);
 			unit->parent = parent;
 			// Scan ports for touched junctions
 			for (Port& port : unit->ports) {
@@ -125,10 +125,10 @@ namespace Reflux::Engine::Design {
 					remove_export_raw_(*junction);
 					Factory::destroy(*junction);
 				}
-			} else if(!isBoundToUnpopped) {
+			} else if (!isBoundToUnpopped) {
 				// Give away case
-				junctions.erase(junction);
-				parent->junctions.emplace(junction);
+				unregister_raw_(*junction);
+				parent->register_raw_(*junction);
 				junction->parent = parent;
 			} else {
 				// Create export case
@@ -141,6 +141,19 @@ namespace Reflux::Engine::Design {
 				exportedPort.bind(externalJunction);
 			}
 		}
+	}
+
+
+	void CompositeUnit::child_geometry_update(BaseUnit& unit) {
+		Geometry::rect<int> rect = unit.get_local_rect();
+		tree_.update(&unit, rect.min(), rect.max());
+		for(Port& port : unit.ports) {
+			if (port.junction) {
+				Geometry::vector2<int> position = port.junction->get_local_position();
+				tree_.update(port.junction, position, position);
+			}
+		}
+		recalculate_own_rect();
 	}
 
 	std::string CompositeUnit::name() const {
@@ -295,6 +308,48 @@ namespace Reflux::Engine::Design {
 		}
 		junction.isExported = false;
 		return exportedPort;
+	}
+
+	void CompositeUnit::register_raw_(BaseUnit& unit) {
+		units.emplace(&unit);
+		Geometry::rect rect = unit.get_local_rect();
+		tree_.insert(&unit, rect.min(), rect.max());
+		recalculate_own_rect();
+	}
+
+	void CompositeUnit::register_raw_(Junction& junction) {
+		junctions.emplace(&junction);
+		Geometry::vector2<int> position = junction.get_local_position();
+		tree_.insert(&junction, position, position);
+		recalculate_own_rect();
+	}
+
+	void CompositeUnit::unregister_raw_(BaseUnit& unit) {
+		units.erase(&unit);
+		tree_.erase(&unit);
+		recalculate_own_rect();
+	}
+
+	void CompositeUnit::unregister_raw_(Junction& junction) {
+		junctions.erase(&junction);
+		tree_.erase(&junction);
+		Geometry::vector2<int> position = junction.get_local_position();
+		recalculate_own_rect();
+	}
+
+	void CompositeUnit::recalculate_own_rect() {
+		Geometry::rect<int> newRect = units.size() == 0 ? Geometry::rect<int>{ { 0, 0 }, { 0, 0 }} : (*units.begin())->get_local_rect();
+		for (BaseUnit* unit : units) {
+			newRect = newRect + unit->get_local_rect();
+		}
+		for (Junction* junction : junctions) {
+			Geometry::vector2<int> position = junction->get_local_position();
+			newRect = newRect + Geometry::rect<int>{position, position};
+		}
+		internalRect_ = newRect;
+		if (parent) {
+			parent->child_geometry_update(*this);
+		}
 	}
 
 }
